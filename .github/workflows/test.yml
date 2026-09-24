@@ -1,0 +1,20 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # TypeScript 7+ has no JS compiler API; the parser helper needs 6.x or older.
+      - run: npm install --no-save --no-package-lock typescript@6
+      - run: python3 -m unittest discover -s tests -v
