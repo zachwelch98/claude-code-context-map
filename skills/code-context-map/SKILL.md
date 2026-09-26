@@ -19,6 +19,8 @@ description: >-
 A `PostToolUse` hook already keeps `.claude/context-map.json` / `.claude/context-map.md`
 current in the background for this project — every time you edit or write a file, a plain
 parser script (no model involved) re-indexes that file's functions, classes, and variables.
+Source files changed by a Bash command (heredocs, `sed -i`, codegen…) are picked up too: after
+each Bash call, a second hook re-indexes any tracked file whose mtime moved.
 Your job is to actually *use* that map before guessing.
 
 ## Before writing a call to existing code
@@ -35,8 +37,9 @@ Your job is to actually *use* that map before guessing.
 
 ## If the map doesn't cover what you need
 
-The hook only indexes files *you* edit through Claude Code — it can't see existing code you
-merely need to call into but haven't touched yet. When you're about to reference something
+The hooks only index files *you* change through Claude Code (Edit/Write, or Bash in a git
+repo) — they can't see existing code you merely need to call into but haven't touched yet, and
+edits made outside Claude show up only as a staleness warning at session start. When you're about to reference something
 from a file that isn't in the map (or there's no map at all yet):
 
 ```

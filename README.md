@@ -33,7 +33,7 @@ python3 ~/.claude/skills/code-context-map/scripts/scan_project.py     # run insi
 ```
 
 The installer is idempotent and only does three things: copies the skill to `~/.claude/skills/code-context-map/`,
-adds two hooks to `~/.claude/settings.json` (existing settings/hooks are kept; a timestamped backup is written
+adds three hooks to `~/.claude/settings.json` (existing settings/hooks are kept; a timestamped backup is written
 first), and — if `node` and `npm` are present — installs `typescript@6` into the skill folder.
 Use `--dry-run` to preview, `--no-typescript` to skip the npm step, and `--uninstall` to remove everything.
 

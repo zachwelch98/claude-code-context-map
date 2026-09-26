@@ -9,8 +9,9 @@
 What it does (and nothing else):
   1. Copies skills/code-context-map/ to <claude-dir>/skills/code-context-map/
      (overlay copy: an upgrade keeps your .disabled switch and any node_modules).
-  2. Adds two hooks to <claude-dir>/settings.json — PostToolUse (re-index a file
-     after Claude edits it) and SessionStart (one-line status). Existing settings
+  2. Adds three hooks to <claude-dir>/settings.json — PostToolUse on Edit/Write
+     (re-index the edited file), PostToolUse on Bash (re-index source files the
+     command changed) and SessionStart (one-line status). Existing settings
      and hooks are preserved; re-running never duplicates them; a timestamped
      backup is written before any change.
   3. Optionally runs `npm install typescript` inside the skill's scripts/ folder
@@ -37,6 +38,7 @@ TYPESCRIPT_SPEC = "typescript@6"
 # (event, matcher, script, timeout-seconds)
 HOOKS = (
     ("PostToolUse", "Edit|Write|MultiEdit", "update_symbol_map.py", 15),
+    ("PostToolUse", "Bash", "sync_changed.py", 15),
     ("SessionStart", "*", "session_status.py", 5),
 )
 

@@ -138,6 +138,12 @@ def build_reverse_indexes(root: Path, files_data: dict) -> tuple:
     return symbol_index, reverse_imports, reverse_calls
 
 
+def atomic_write(path: Path, content: str) -> None:
+    tmp = path.with_name(path.name + f".tmp{os.getpid()}")
+    tmp.write_text(content, encoding="utf-8")
+    tmp.replace(path)
+
+
 def write_map(root: Path, files_data: dict) -> dict:
     claude_dir = root / ".claude"
     claude_dir.mkdir(parents=True, exist_ok=True)
@@ -151,8 +157,8 @@ def write_map(root: Path, files_data: dict) -> dict:
         "reverse_imports": reverse_imports,
         "reverse_calls": reverse_calls,
     }
-    (claude_dir / "context-map.json").write_text(json.dumps(map_data, indent=2), encoding="utf-8")
-    (claude_dir / "context-map.md").write_text(render_markdown(map_data), encoding="utf-8")
+    atomic_write(claude_dir / "context-map.json", json.dumps(map_data, indent=2))
+    atomic_write(claude_dir / "context-map.md", render_markdown(map_data))
     return map_data
 
 

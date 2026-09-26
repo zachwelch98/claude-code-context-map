@@ -4,6 +4,7 @@ TypeScript-parser tests are skipped when no `typescript` package can be found
 (`npm install typescript` at the repo root enables them).
 """
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(data["theme"], "dark")
         self.assertIn("echo mine", commands(data, "PostToolUse"))
         self.assertEqual(sum("update_symbol_map.py" in c for c in commands(data, "PostToolUse")), 1)
+        self.assertEqual(sum("sync_changed.py" in c for c in commands(data, "PostToolUse")), 1)
         self.assertEqual(sum("session_status.py" in c for c in commands(data, "SessionStart")), 1)
         self.assertTrue((self.claude / "skills" / "code-context-map" / "SKILL.md").is_file())
 
@@ -175,6 +177,51 @@ class TypeScriptFallbackTests(unittest.TestCase):
             finally:
                 ex._find_typescript = saved
             self.assertEqual([(s.name, s.precise) for s in syms], [("hello", False)])
+
+
+class BashSyncTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name).resolve()
+        self.map_path = self.root / ".claude" / "context-map.json"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def sync(self, root: Path):
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+        payload = json.dumps({"cwd": str(root), "tool_name": "Bash", "tool_input": {}})
+        result = subprocess.run([sys.executable, str(SCRIPTS / "sync_changed.py")], input=payload,
+                                capture_output=True, text=True, env=env)
+        self.assertEqual(result.returncode, 0)
+
+    def mapped(self) -> dict:
+        files = json.loads(self.map_path.read_text())["files"]
+        return {rel: [s["name"] for s in e["symbols"]] for rel, e in files.items()}
+
+    def test_bootstraps_updates_and_drops_deleted_files(self):
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        (self.root / "a.py").write_text("def alpha():\n    return 1\n")
+        (self.root / "b.py").write_text("def beta():\n    return 2\n")
+        self.sync(self.root)
+        self.assertEqual(self.mapped(), {"a.py": ["alpha"], "b.py": ["beta"]})
+
+        written = self.map_path.stat().st_mtime_ns
+        self.sync(self.root)  # nothing changed -> map not rewritten
+        self.assertEqual(self.map_path.stat().st_mtime_ns, written)
+
+        a = self.root / "a.py"
+        a.write_text("def alpha():\n    return 1\n\ndef gamma():\n    return 3\n")
+        later = a.stat().st_mtime + 5
+        os.utime(a, (later, later))
+        (self.root / "b.py").unlink()
+        self.sync(self.root)
+        self.assertEqual(self.mapped(), {"a.py": ["alpha", "gamma"]})
+
+    def test_skips_directories_that_are_not_git_repos(self):
+        (self.root / "a.py").write_text("def alpha():\n    return 1\n")
+        self.sync(self.root)
+        self.assertFalse(self.map_path.exists())
 
 
 if __name__ == "__main__":
